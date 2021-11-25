@@ -40,6 +40,7 @@ class TaskViewController: UIViewController {
         let textArea = MDCFilledTextArea()
         textArea.label.text = "Task"
         textArea.placeholder = "Some Task"
+        textArea.becomeFirstResponder()
         textArea.sizeToFit()
         textArea.translatesAutoresizingMaskIntoConstraints = false
         return textArea
@@ -73,6 +74,11 @@ class TaskViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = UIColor.systemBackground
         setupView()
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        taskTextArea.textView.becomeFirstResponder()
     }
     
 }
@@ -206,7 +212,7 @@ extension TaskViewController: PanModalPresentable {
     }
     
     var longFormHeight: PanModalHeight {
-        return .maxHeightWithTopInset(0)
+        return .maxHeight
     }
     
     var anchorModalToLongForm: Bool {
