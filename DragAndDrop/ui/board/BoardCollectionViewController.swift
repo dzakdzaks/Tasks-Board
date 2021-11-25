@@ -21,6 +21,7 @@ class BoardCollectionViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupNavBar()
+        setupCollectionView()
         updateCollectionViewItem(with: view.bounds.size)
     }
     
@@ -52,15 +53,6 @@ class BoardCollectionViewController: UIViewController {
         navigationItem.rightBarButtonItem = addButtonItem
     }
     
-    func removeAddButtonItem() {
-        let button = UIButton(type: .system)
-        button.setImage(UIImage(systemName: "trash"), for: .normal)
-        button.tintColor = .red
-        button.addInteraction(UIDropInteraction(delegate: self))
-        let removeBarButtonItem = UIBarButtonItem(customView: button)
-        navigationItem.leftBarButtonItem = removeBarButtonItem
-    }
-    
     @objc func addBoard(_ sender: Any) {
         let alert = UIAlertController(title: "Add Board", message: nil, preferredStyle: .alert)
         alert.addTextField(configurationHandler: nil)
@@ -80,6 +72,33 @@ class BoardCollectionViewController: UIViewController {
         self.present(alert, animated: true, completion: nil)
     }
     
+    private func setupCollectionView() {
+        let gesture = UILongPressGestureRecognizer(target: self,
+                                                   action: #selector(handlerlongPressGesture(_:)))
+        collectionView.addGestureRecognizer(gesture)
+    }
+    
+    @objc func handlerlongPressGesture(_ gesture: UILongPressGestureRecognizer) {
+        guard let collectionView = collectionView else {
+            return
+        }
+        
+        switch gesture.state {
+        case .began:
+            guard let targetIndexPath = collectionView.indexPathForItem(at: gesture.location(in: collectionView)) else {
+                return
+            }
+            collectionView.beginInteractiveMovementForItem(at: targetIndexPath)
+        case .changed:
+            collectionView.updateInteractiveMovementTargetPosition(gesture.location(in: collectionView))
+        case .ended:
+            collectionView.endInteractiveMovement()
+        default:
+            collectionView.cancelInteractiveMovement()
+        }
+    }
+
+    
 }
 
 extension BoardCollectionViewController: UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
@@ -90,34 +109,33 @@ extension BoardCollectionViewController: UICollectionViewDataSource, UICollectio
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "BoardCell", for: indexPath) as! BoardCollectionViewCell
-        cell.setup(board: boards[indexPath.item])
+        cell.setup(board: boards[indexPath.row], index: indexPath.row)
+        cell.delegate = self
         cell.parentViewController = self
         return cell
     }
     
-}
-
-extension BoardCollectionViewController: UIDropInteractionDelegate {
-    
-    func dropInteraction(_ interaction: UIDropInteraction, performDrop session: UIDropSession) {
-        if session.hasItemsConforming(toTypeIdentifiers: [kUTTypePlainText as String]) {
-            session.loadObjects(ofClass: NSString.self) { items in
-                guard let _ = items.first as? String else {
-                    return
-                }
-                
-                if let (dataSource, sourceIndexPath, tableView) = session.localDragSession?.localContext as? (Board, IndexPath, UITableView) {
-                    tableView.beginUpdates()
-                    dataSource.tasks.remove(at: sourceIndexPath.row)
-                    tableView.deleteRows(at: [sourceIndexPath], with: .automatic)
-                    tableView.endUpdates()
-                }
-            }
-        }
+    func collectionView(_ collectionView: UICollectionView, canMoveItemAt indexPath: IndexPath) -> Bool {
+        return true
     }
     
-    func dropInteraction(_ interaction: UIDropInteraction, sessionDidUpdate session: UIDropSession) -> UIDropProposal {
-        return UIDropProposal(operation: .move)
+    func collectionView(_ collectionView: UICollectionView, moveItemAt sourceIndexPath: IndexPath, to destinationIndexPath: IndexPath) {
+        let board = boards.remove(at: sourceIndexPath.row)
+        boards.insert(board, at: destinationIndexPath.row)
+        self.collectionView.scrollToItem(at: destinationIndexPath, at: UICollectionView.ScrollPosition.centeredHorizontally, animated: true)
+    }
+    
+}
+
+extension BoardCollectionViewController: BoardCollectionViewCellDelegate {
+    
+    func didDeleteBoard(board: Board, index: Int) {
+        self.boards.remove(at: index)
+        self.collectionView.deleteItems(at: [IndexPath(row: index, section: 0)])
+        
+        let range = NSMakeRange(0, self.collectionView.numberOfSections)
+        let sections = NSIndexSet(indexesIn: range)
+        self.collectionView.reloadSections(sections as IndexSet)
     }
     
 }

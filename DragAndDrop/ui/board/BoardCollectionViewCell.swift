@@ -9,11 +9,18 @@ import UIKit
 import MobileCoreServices
 import PanModal
 
+protocol BoardCollectionViewCellDelegate: AnyObject {
+    func didDeleteBoard(board: Board, index: Int)
+}
+
+
 class BoardCollectionViewCell: UICollectionViewCell {
     
     @IBOutlet weak var tableView: UITableView!
+    weak var delegate: BoardCollectionViewCellDelegate?
     weak var parentViewController: BoardCollectionViewController?
-    var board: Board?
+    var board: Board!
+    var index: Int!
     
     override func awakeFromNib() {
         super.awakeFromNib()
@@ -28,8 +35,9 @@ class BoardCollectionViewCell: UICollectionViewCell {
         tableView.tableFooterView = UIView()
     }
     
-    func setup(board: Board) {
+    func setup(board: Board, index: Int) {
         self.board = board
+        self.index = index
         tableView.reloadData()
     }
     
@@ -53,6 +61,15 @@ class BoardCollectionViewCell: UICollectionViewCell {
             self.tableView.insertRows(at: [addedTaskIndexPath], with: .left)
             self.tableView.scrollToRow(at: addedTaskIndexPath, at: UITableView.ScrollPosition.bottom, animated: true)
             
+        }))
+        parentViewController?.present(alertController, animated: true, completion: nil)
+    }
+    
+    @IBAction func deleteBoardClicked(_ sender: UIButton) {
+        let alertController = UIAlertController(title: "Are you sure delete \(self.board?.title ?? "this") board?", message: "Deleted board can't be returned", preferredStyle: .alert)
+        alertController.addAction(UIAlertAction(title: "Cancel", style: .default, handler: nil))
+        alertController.addAction(UIAlertAction(title: "Delete", style: .default, handler: { _ in
+            self.delegate?.didDeleteBoard(board: self.board, index: self.index)
         }))
         parentViewController?.present(alertController, animated: true, completion: nil)
     }
@@ -133,16 +150,6 @@ extension BoardCollectionViewCell: UITableViewDragDelegate {
         session.localContext = (board, indexPath, tableView)
         
         return [dragItem]
-    }
-    
-    func tableView(_ tableView: UITableView, dragSessionWillBegin session: UIDragSession) {
-        parentViewController?.removeAddButtonItem()
-        parentViewController?.navigationItem.rightBarButtonItem = nil
-    }
-    
-    func tableView(_ tableView: UITableView, dragSessionDidEnd session: UIDragSession) {
-        parentViewController?.setupAddButtonItem()
-        parentViewController?.navigationItem.leftBarButtonItem = nil
     }
 }
 
